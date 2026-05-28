@@ -1,60 +1,102 @@
-# Weather Data Feed Requirements
+# TRMNL Data Feed Requirements
 
-## Current Feeds
+A dedicated JSON feed for the TRMNL display server, served from `wx.jibb.tv`.
 
-**Base URL:** `http://wx.jibb.tv`
+## Target endpoint
 
-| Endpoint | Description | Status |
-|---|---|---|
-| `/current_minimal.json` | Current conditions (temp, humidity, barometer, wind, rain rate) | Live |
-| `/weewx.json` | Full dataset including day/week/month/year stats | Live |
-| `/weewx_extended.json` | Extended data | 404 — not deployed |
+`http://wx.jibb.tv/trmnl.json`
 
-## Required Additions
+A new weewx skin template (`trmnl.json.tmpl`) containing only the fields this server needs.
 
-### Almanac data in `current_minimal.json`
-
-The weather plugin at `plugins/weather/weather.go` fetches `current_minimal.json`. The following fields need to be added to the `current_minimal.json.tmpl` skin template on the weather station:
+## Required fields
 
 ```json
-"almanac": {
-    "sunrise": "5:18 AM",
-    "sunset": "8:55 PM"
-}
-```
-
-**Weewx template variables** (Cheetah syntax, to be added inside `current_minimal.json.tmpl`):
-
-```
-"almanac":
 {
-    "sunrise": "$almanac.sunrise",
-    "sunset":  "$almanac.sunset"
+    "current": {
+        "temperature":     {"value": 71.0, "units": "°F"},
+        "humidity":        {"value": 59.0, "units": "%"},
+        "barometer":       {"value": 29.98, "units": "inHg"},
+        "wind speed":      {"value": 4.0,  "units": "mph"},
+        "wind gust":       {"value": 7.0,  "units": "mph"},
+        "wind direction":  {"value": 315.0, "units": "°"},
+        "rain rate":       {"value": 0.0,  "units": "in/h"}
+    },
+    "almanac": {
+        "sunrise": "5:18 AM",
+        "sunset":  "8:55 PM"
+    },
+    "generation": {
+        "time": "Wed, 27 May 2026 18:53:00 PDT"
+    }
 }
 ```
 
-These values are already computed by weewx and displayed on the HTML pages at `http://wx.jibb.tv/` and `http://wx.jibb.tv/almanac.html`. They just need to be surfaced in the JSON feed.
+## Weewx template (`trmnl.json.tmpl`)
 
-### Template file location on weather station
+```
+{
+    "current":
+    {
+        #if $current.outTemp.has_data
+        "temperature": {"value": $current.outTemp.raw, "units": "$current.outTemp.format(" ").lstrip()"},
+        #end if
+        #if $current.outHumidity.has_data
+        "humidity": {"value": $current.outHumidity.raw, "units": "$current.outHumidity.format(" ").lstrip()"},
+        #end if
+        #if $current.barometer.has_data
+        "barometer": {"value": $current.barometer.raw, "units": "$current.barometer.format(" ").lstrip()"},
+        #end if
+        #if $current.windSpeed.has_data
+        "wind speed": {"value": $current.windSpeed.raw, "units": "$current.windSpeed.format(" ").lstrip()"},
+        #end if
+        #if $current.windGust.has_data
+        "wind gust": {"value": $current.windGust.raw, "units": "$current.windGust.format(" ").lstrip()"},
+        #end if
+        #if $current.windDir.has_data
+        "wind direction": {"value": $current.windDir.raw, "units": "$current.windDir.format(" ").lstrip()"},
+        #end if
+        #if $current.rainRate.has_data
+        "rain rate": {"value": $current.rainRate.raw, "units": "$current.rainRate.format(" ").lstrip()"},
+        #end if
+        "void_end": null
+    },
+    "almanac":
+    {
+        "sunrise": "$almanac.sunrise",
+        "sunset":  "$almanac.sunset"
+    },
+    "generation":
+    {
+        "time": "$current.dateTime.format("%a, %d %b %Y %H:%M:%S %Z")"
+    }
+}
+```
 
-`/etc/weewx/skins/JSON/current_minimal.json.tmpl`
+## Deployment steps on weather station
 
-(Or wherever the weewx skin is installed — confirm with `weewx config` or check the weewx config file for `SKIN_ROOT`.)
+1. Save the template as `/etc/weewx/skins/JSON/trmnl.json.tmpl` (or wherever the JSON skin lives — check `SKIN_ROOT` in `weewx.conf`).
 
-After editing the template, weewx will pick up the change on the next archive interval (typically 5 minutes) without requiring a restart.
+2. Add an entry to `skin.conf` under `[CheetahGenerator] [[ToDate]]`:
+   ```ini
+   [[trmnl]]
+       template = trmnl.json.tmpl
+   ```
 
-## Go plugin consuming this data
+3. weewx will generate `trmnl.json` in the skin output directory on the next archive interval (~5 minutes). No restart needed.
 
-`plugins/weather/weather.go` — the `wxData` struct will need a new `Almanac` field once the feed is updated:
+## Go plugin update (after feed is live)
 
+Update `dataURL` in `plugins/weather/weather.go`:
 ```go
-type wxData struct {
-    // ... existing fields ...
-    Almanac struct {
-        Sunrise string `json:"sunrise"`
-        Sunset  string `json:"sunset"`
-    } `json:"almanac"`
-}
+const dataURL = "http://wx.jibb.tv/trmnl.json"
 ```
 
-The time strings (`"5:18 AM"`) can be parsed with `time.Parse("3:04 PM", wx.Almanac.Sunrise)`.
+Add `Almanac` to the `wxData` struct:
+```go
+Almanac struct {
+    Sunrise string `json:"sunrise"`
+    Sunset  string `json:"sunset"`
+} `json:"almanac"`
+```
+
+Then add the Rise/Set row to the render function (the `TODO` comment is already in place).
