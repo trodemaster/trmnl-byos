@@ -124,8 +124,9 @@ func (p *dashPlugin) Render(_ context.Context, d *device.Device) (*image.Gray, e
 	fcRes := <-fcCh
 
 	// divY separates current conditions (above) from forecast strip (below).
-	divY := h * 514 / 1000 // ≈722px at 1404 height
-	fcH := h - divY        // forecast section height ≈682px
+	// Forecast strip is ~33% of display height.
+	divY := h * 670 / 1000 // ≈940px at 1404 height
+	fcH := h - divY        // forecast section height ≈464px
 
 	// ── Current conditions ───────────────────────────────────────────────────
 
@@ -140,34 +141,34 @@ func (p *dashPlugin) Render(_ context.Context, d *device.Device) (*image.Gray, e
 
 		drawCentered(img, heroFont,
 			fmt.Sprintf("%.1f%s", wx.Current.Temperature.Value, wx.Current.Temperature.Units),
-			w/2, h*235/1000)
+			w/2, h*255/1000)
 
 		drawLeft(img, medFont,
 			fmt.Sprintf("Humidity  %.0f%%", wx.Current.Humidity.Value),
-			margin, h*338/1000)
+			margin, h*386/1000)
 		drawRight(img, medFont,
 			fmt.Sprintf("%.2f inHg", wx.Current.Barometer.Value),
-			w-margin, h*338/1000)
+			w-margin, h*386/1000)
 
-		drawCentered(img, medFont, windString(wx), w/2, h*405/1000)
+		drawCentered(img, medFont, windString(wx), w/2, h*468/1000)
 
 		drawLeft(img, medFont,
 			fmt.Sprintf("High  %.0f%s", wx.Day.MaxTemp.Value, wx.Day.MaxTemp.Units),
-			margin, h*467/1000)
+			margin, h*548/1000)
 		drawRight(img, medFont,
 			fmt.Sprintf("Low  %.0f%s", wx.Day.MinTemp.Value, wx.Day.MinTemp.Units),
-			w-margin, h*467/1000)
+			w-margin, h*548/1000)
 
 		if wx.Day.RainTotal.Value > 0 {
 			rain := fmt.Sprintf("Rain  %.2f in today", wx.Day.RainTotal.Value)
 			if wx.Current.RainRate.Value > 0 {
 				rain += fmt.Sprintf("  (%.2f in/h)", wx.Current.RainRate.Value)
 			}
-			drawCentered(img, smallFont, rain, w/2, h*490/1000)
+			drawCentered(img, smallFont, rain, w/2, h*612/1000)
 		}
 	}
 
-	// Section divider (3px thick)
+	// Section divider (3px thick, full width)
 	for dy := 0; dy < 3; dy++ {
 		drawHLine(img, divY+dy, 0, w)
 	}
@@ -183,11 +184,8 @@ func (p *dashPlugin) Render(_ context.Context, d *device.Device) (*image.Gray, e
 			n = 5
 		}
 
-		drawLeft(img, smallFont, "5-Day Forecast", margin, divY+fcH*48/1000)
-		drawHLine(img, divY+fcH*78/1000, margin, w-margin)
-
 		colW := (w - 2*margin) / n
-		iconR := colW * 24 / 100
+		iconR := colW * 19 / 100 // smaller icon for the compact strip
 
 		for i := 0; i < n; i++ {
 			cx := margin + colW*i + colW/2
@@ -197,31 +195,31 @@ func (p *dashPlugin) Render(_ context.Context, d *device.Device) (*image.Gray, e
 			if i == 0 {
 				dayName = "Today"
 			}
-			drawCentered(img, medFont, dayName, cx, divY+fcH*210/1000)
+			drawCentered(img, medFont, dayName, cx, divY+fcH*145/1000)
 
 			if i < len(fc.Daily.WeatherCode) {
-				drawWeatherIcon(img, cx, divY+fcH*395/1000, iconR, fc.Daily.WeatherCode[i])
+				drawWeatherIcon(img, cx, divY+fcH*327/1000, iconR, fc.Daily.WeatherCode[i])
 			}
 
 			if i < len(fc.Daily.TempMax) {
 				drawCentered(img, medFont,
 					fmt.Sprintf("H %.0f°", fc.Daily.TempMax[i]),
-					cx, divY+fcH*635/1000)
+					cx, divY+fcH*618/1000)
 			}
 			if i < len(fc.Daily.TempMin) {
 				drawCentered(img, medFont,
 					fmt.Sprintf("L %.0f°", fc.Daily.TempMin[i]),
-					cx, divY+fcH*790/1000)
+					cx, divY+fcH*775/1000)
 			}
 			if i < len(fc.Daily.PrecipProbabilityMax) {
 				drawCentered(img, smallFont,
 					fmt.Sprintf("%d%% rain", fc.Daily.PrecipProbabilityMax[i]),
-					cx, divY+fcH*935/1000)
+					cx, divY+fcH*900/1000)
 			}
 
 			if i < n-1 {
 				x := margin + colW*(i+1)
-				for y := divY + fcH*85/1000; y < h*980/1000; y++ {
+				for y := divY + 3; y < h; y++ {
 					img.SetGray(x, y, color.Gray{0})
 				}
 			}
