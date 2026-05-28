@@ -89,39 +89,47 @@ func (p *weatherPlugin) Render(_ context.Context, d *device.Device) (*image.Gray
 		return img, nil
 	}
 
-	// Header: location left, update time right
+	// Header: location left, update time right (12-hour format)
 	drawLeft(img, smallFont, wx.Station.Location, margin, h*65/1000)
-	drawRight(img, smallFont, wx.Generation.Time, w-margin, h*65/1000)
+	drawRight(img, smallFont, formatTime12(wx.Generation.Time), w-margin, h*65/1000)
 	drawHLine(img, h*82/1000, margin, w-margin)
 
 	// Temperature — hero element
 	drawCentered(img, hugeFont,
 		fmt.Sprintf("%.1f%s", wx.Current.Temperature.Value, wx.Current.Temperature.Units),
-		w/2, h*42/100)
+		w/2, h*40/100)
 
 	// Humidity (left) | Barometer (right)
 	drawLeft(img, medFont,
 		fmt.Sprintf("Humidity  %.0f%%", wx.Current.Humidity.Value),
-		w/4, h*60/100)
+		w/4, h*57/100)
 	drawRight(img, medFont,
 		fmt.Sprintf("%.2f inHg", wx.Current.Barometer.Value),
-		3*w/4, h*60/100)
+		3*w/4, h*57/100)
 
 	// Wind
-	drawCentered(img, medFont, windString(wx), w/2, h*70/100)
+	drawCentered(img, medFont, windString(wx), w/2, h*66/100)
+
+	// TODO: add Rise/Set row here once almanac data is in the feed (see DATA_FEEDS.md)
 
 	// Rain rate — only when non-zero
 	if wx.Current.RainRate.Value > 0 {
 		drawCentered(img, medFont,
 			fmt.Sprintf("Rain  %.2f in/h", wx.Current.RainRate.Value),
-			w/2, h*80/100)
+			w/2, h*84/100)
 	}
 
-	// Footer
-	drawHLine(img, h*910/1000, margin, w-margin)
-	drawCentered(img, smallFont, "Updated  "+wx.Generation.Time, w/2, h*960/1000)
-
 	return img, nil
+}
+
+// formatTime12 parses the weewx generation timestamp and returns it in 12-hour format.
+// Input: "Wed, 27 May 2026 18:41:00 PDT" → "6:41 PM PDT"
+func formatTime12(s string) string {
+	t, err := time.Parse("Mon, 02 Jan 2006 15:04:05 MST", s)
+	if err != nil {
+		return s
+	}
+	return t.Format("3:04 PM MST")
 }
 
 func windString(wx *wxData) string {
@@ -133,6 +141,11 @@ func windString(wx *wxData) string {
 		s += fmt.Sprintf("  (gusts %.0f)", wx.Current.WindGust.Value)
 	}
 	return s
+}
+
+func compassDir(deg float64) string {
+	dirs := [16]string{"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"}
+	return dirs[int(math.Round(deg/22.5))%16]
 }
 
 func fetchWeather() (*wxData, error) {
@@ -147,11 +160,6 @@ func fetchWeather() (*wxData, error) {
 		return nil, err
 	}
 	return &wx, nil
-}
-
-func compassDir(deg float64) string {
-	dirs := [16]string{"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"}
-	return dirs[int(math.Round(deg/22.5))%16]
 }
 
 func drawCentered(dst draw.Image, face font.Face, s string, cx, cy int) {
