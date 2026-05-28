@@ -63,9 +63,9 @@ func init() {
 		log.Fatalf("weather: parse font: %v", err)
 	}
 	const dpi = 96
-	hugeFont, _ = opentype.NewFace(tt, &opentype.FaceOptions{Size: 180, DPI: dpi})
-	medFont, _ = opentype.NewFace(tt, &opentype.FaceOptions{Size: 52, DPI: dpi})
-	smallFont, _ = opentype.NewFace(tt, &opentype.FaceOptions{Size: 32, DPI: dpi})
+	hugeFont, _ = opentype.NewFace(tt, &opentype.FaceOptions{Size: 253, DPI: dpi})
+	medFont, _ = opentype.NewFace(tt, &opentype.FaceOptions{Size: 68, DPI: dpi})
+	smallFont, _ = opentype.NewFace(tt, &opentype.FaceOptions{Size: 36, DPI: dpi})
 	plugin.Register(&weatherPlugin{})
 }
 
@@ -102,26 +102,26 @@ func (p *weatherPlugin) Render(_ context.Context, d *device.Device) (*image.Gray
 	// Temperature — hero element
 	drawCentered(img, hugeFont,
 		fmt.Sprintf("%.1f%s", wx.Current.Temperature.Value, wx.Current.Temperature.Units),
-		w/2, h*40/100)
+		w/2, h*37/100)
 
 	// Humidity (left) | Barometer (right)
 	drawLeft(img, medFont,
 		fmt.Sprintf("Humidity  %.0f%%", wx.Current.Humidity.Value),
-		w/4, h*57/100)
+		margin, h*55/100)
 	drawRight(img, medFont,
 		fmt.Sprintf("%.2f inHg", wx.Current.Barometer.Value),
-		3*w/4, h*57/100)
+		w-margin, h*55/100)
 
 	// Wind
-	drawCentered(img, medFont, windString(wx), w/2, h*66/100)
+	drawCentered(img, medFont, windString(wx), w/2, h*65/100)
 
 	// Today's high / low
 	drawLeft(img, medFont,
 		fmt.Sprintf("High  %.0f%s", wx.Day.MaxTemp.Value, wx.Day.MaxTemp.Units),
-		w/4, h*75/100)
+		margin, h*75/100)
 	drawRight(img, medFont,
 		fmt.Sprintf("Low  %.0f%s", wx.Day.MinTemp.Value, wx.Day.MinTemp.Units),
-		3*w/4, h*75/100)
+		w-margin, h*75/100)
 
 	// TODO: add Rise/Set row here once almanac data is in the feed (see DATA_FEEDS.md)
 
@@ -131,7 +131,7 @@ func (p *weatherPlugin) Render(_ context.Context, d *device.Device) (*image.Gray
 		if wx.Current.RainRate.Value > 0 {
 			rain += fmt.Sprintf("  (%.2f in/h)", wx.Current.RainRate.Value)
 		}
-		drawCentered(img, medFont, rain, w/2, h*84/100)
+		drawCentered(img, medFont, rain, w/2, h*85/100)
 	}
 
 	return img, nil
