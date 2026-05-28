@@ -35,6 +35,7 @@ type Store struct {
 	devices map[string]*Device // keyed by ScreenID
 	byKey   map[string]*Device // keyed by APIKey
 	path    string
+	modTime time.Time // mtime at last load; used to detect external edits
 }
 
 func NewStore(dataDir string) (*Store, error) {
@@ -83,17 +84,31 @@ func (s *Store) GetOrCreate(mac, model, fwVersion string) *Device {
 }
 
 func (s *Store) ByAPIKey(key string) (*Device, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.reloadIfChanged()
 	d, ok := s.byKey[key]
 	return d, ok
 }
 
 func (s *Store) ByScreenID(screenID string) (*Device, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.reloadIfChanged()
 	d, ok := s.devices[screenID]
 	return d, ok
+}
+
+// reloadIfChanged re-reads devices.json when the file has been modified externally.
+// Must be called with mu held.
+func (s *Store) reloadIfChanged() {
+	info, err := os.Stat(s.path)
+	if err != nil || !info.ModTime().After(s.modTime) {
+		return
+	}
+	s.devices = make(map[string]*Device)
+	s.byKey = make(map[string]*Device)
+	_ = s.load()
 }
 
 func (s *Store) UpdateDeviceInfo(apiKey, model, fwVersion string, width, height int) {
@@ -120,6 +135,10 @@ func (s *Store) UpdateDeviceInfo(apiKey, model, fwVersion string, width, height 
 }
 
 func (s *Store) load() error {
+	info, err := os.Stat(s.path)
+	if err != nil {
+		return err
+	}
 	data, err := os.ReadFile(s.path)
 	if err != nil {
 		return err
@@ -132,6 +151,7 @@ func (s *Store) load() error {
 		s.devices[d.ScreenID] = d
 		s.byKey[d.APIKey] = d
 	}
+	s.modTime = info.ModTime()
 	return nil
 }
 
