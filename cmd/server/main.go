@@ -9,6 +9,7 @@ import (
 	"github.com/trodemaster/trmnl-byos/server"
 
 	_ "github.com/trodemaster/trmnl-byos/plugins/clock"
+	_ "github.com/trodemaster/trmnl-byos/plugins/forecast"
 	_ "github.com/trodemaster/trmnl-byos/plugins/weather"
 )
 
