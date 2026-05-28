@@ -18,6 +18,7 @@ func New(store *device.Store, baseURL string) http.Handler {
 	mux.HandleFunc("GET /api/setup", s.handleSetup)
 	mux.HandleFunc("GET /api/display", s.handleDisplay)
 	mux.HandleFunc("GET /screen/{id}", s.handleScreen)
+	mux.HandleFunc("GET /preview/{plugin}", s.handlePreview)
 
 	return mux
 }
