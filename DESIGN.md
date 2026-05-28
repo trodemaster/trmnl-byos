@@ -58,18 +58,23 @@ Server responds with JSON:
 ```json
 {
   "status": 0,
-  "image_url": "http://<server>/screen/<screenID>?t=<unix-timestamp>",
-  "refresh_rate": 900,
+  "image_url": "http://<server>/screen/<screenID>",
+  "filename": "<screenID>-<unix-timestamp>.png",
+  "refresh_rate": 60,
   "update_firmware": false,
   "reset_firmware": false
 }
 ```
 
-`refresh_rate` is in seconds. The timestamp query param is a cache-buster — without it the device may skip downloading if it thinks it already has the image.
+`refresh_rate` is in seconds (currently 60). `filename` is a timestamp-based value used as the device's SPIFFS cache key — changing it on every response forces a fresh download each wake cycle.
 
 ### Image fetch — `GET /screen/<screenID>`
 
 Device downloads whatever URL was in `image_url`. The server renders the active plugin for that device and responds with a PNG image (grayscale, matching the device's reported dimensions).
+
+### Preview — `GET /preview/<pluginName>`
+
+Renders a named plugin directly at default dimensions (1872×1404), independent of any device record. Useful for development. Returns a 404 with a list of registered plugins if the name is unknown.
 
 The TRMNL X firmware detects PNG by checking the `0x89504e47` magic bytes and routes to its PNG decoder. It supports grayscale PNG natively, which gives the full 16-level range of the e-ink display.
 
@@ -91,9 +96,12 @@ trmnl-byos/
 │   ├── server.go               http.ServeMux wiring
 │   ├── setup.go                GET /api/setup
 │   ├── display.go              GET /api/display
-│   └── screen.go               GET /screen/{id} — renders plugin → PNG
+│   └── screen.go               GET /screen/{id} and GET /preview/{plugin}
 └── plugins/
-    └── clock/clock.go          built-in example plugin
+    ├── clock/clock.go          time + date display
+    ├── weather/weather.go      current conditions from wx.jibb.tv
+    ├── forecast/forecast.go    5-day forecast from Open-Meteo
+    └── dashboard/dashboard.go  combined: current conditions + forecast strip
 ```
 
 ## Plugin system
