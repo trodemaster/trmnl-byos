@@ -21,6 +21,11 @@ A new weewx skin template (`trmnl.json.tmpl`) containing only the fields this se
         "wind direction":  {"value": 315.0, "units": "°"},
         "rain rate":       {"value": 0.0,  "units": "in/h"}
     },
+    "day": {
+        "max temperature": {"value": 72.0, "units": "°F"},
+        "min temperature": {"value": 48.5, "units": "°F"},
+        "rain total":      {"value": 0.0,  "units": "in"}
+    },
     "almanac": {
         "sunrise": "5:18 AM",
         "sunset":  "8:55 PM"

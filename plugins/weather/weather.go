@@ -21,7 +21,7 @@ import (
 	"github.com/trodemaster/trmnl-byos/internal/plugin"
 )
 
-const dataURL = "http://wx.jibb.tv/current_minimal.json"
+const dataURL = "http://wx.jibb.tv/weewx.json"
 
 type measurement struct {
 	Value float64 `json:"value"`
@@ -44,6 +44,11 @@ type wxData struct {
 		WindDir     measurement `json:"wind direction"`
 		RainRate    measurement `json:"rain rate"`
 	} `json:"current"`
+	Day struct {
+		MaxTemp   measurement `json:"max temperature"`
+		MinTemp   measurement `json:"min temperature"`
+		RainTotal measurement `json:"rain total"`
+	} `json:"day"`
 }
 
 var (
@@ -110,13 +115,23 @@ func (p *weatherPlugin) Render(_ context.Context, d *device.Device) (*image.Gray
 	// Wind
 	drawCentered(img, medFont, windString(wx), w/2, h*66/100)
 
+	// Today's high / low
+	drawLeft(img, medFont,
+		fmt.Sprintf("High  %.0f%s", wx.Day.MaxTemp.Value, wx.Day.MaxTemp.Units),
+		w/4, h*75/100)
+	drawRight(img, medFont,
+		fmt.Sprintf("Low  %.0f%s", wx.Day.MinTemp.Value, wx.Day.MinTemp.Units),
+		3*w/4, h*75/100)
+
 	// TODO: add Rise/Set row here once almanac data is in the feed (see DATA_FEEDS.md)
 
-	// Rain rate — only when non-zero
-	if wx.Current.RainRate.Value > 0 {
-		drawCentered(img, medFont,
-			fmt.Sprintf("Rain  %.2f in/h", wx.Current.RainRate.Value),
-			w/2, h*84/100)
+	// Rain — only shown when there's something to report
+	if wx.Day.RainTotal.Value > 0 {
+		rain := fmt.Sprintf("Rain  %.2f in today", wx.Day.RainTotal.Value)
+		if wx.Current.RainRate.Value > 0 {
+			rain += fmt.Sprintf("  (%.2f in/h)", wx.Current.RainRate.Value)
+		}
+		drawCentered(img, medFont, rain, w/2, h*84/100)
 	}
 
 	return img, nil
@@ -129,7 +144,7 @@ func formatTime12(s string) string {
 	if err != nil {
 		return s
 	}
-	return t.Format("3:04 PM MST")
+	return t.Format("Mon Jan 2  3:04 PM")
 }
 
 func windString(wx *wxData) string {
