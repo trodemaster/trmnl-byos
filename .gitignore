@@ -1,0 +1,16 @@
+# Build output
+trmnl-server
+/dist/
+
+# Runtime data — devices.json contains API keys and MAC addresses
+data/
+
+# Environment — contains BASE_URL with local IP
+.envrc
+
+# macOS
+.DS_Store
+
+# Go toolchain
+*.test
+*.out
