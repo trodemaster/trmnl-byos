@@ -8,18 +8,33 @@ A dedicated JSON feed for the TRMNL display server, served from `wx.jibb.tv`.
 
 A new weewx skin template (`trmnl.json.tmpl`) containing only the fields this server needs.
 
-## Required fields
+## Available fields
+
+The live feed (`trmnl.json`) exposes the fields below. The Go plugin only decodes the
+subset it renders; extra fields are ignored, so the feed can carry more than the display uses.
 
 ```json
 {
+    "station": {
+        "location": "West Woodland"
+    },
     "current": {
-        "temperature":     {"value": 71.0, "units": "°F"},
-        "humidity":        {"value": 59.0, "units": "%"},
-        "barometer":       {"value": 29.98, "units": "inHg"},
-        "wind speed":      {"value": 4.0,  "units": "mph"},
-        "wind gust":       {"value": 7.0,  "units": "mph"},
-        "wind direction":  {"value": 315.0, "units": "°"},
-        "rain rate":       {"value": 0.0,  "units": "in/h"}
+        "temperature":         {"value": 71.0, "units": "°F"},
+        "humidity":            {"value": 59.0, "units": "%"},
+        "barometer":           {"value": 29.98, "units": "inHg"},
+        "wind speed":          {"value": 4.0,  "units": "mph"},
+        "wind gust":           {"value": 7.0,  "units": "mph"},
+        "wind direction":      {"value": 315.0, "units": "°"},
+        "rain rate":           {"value": 0.0,  "units": "in/h"},
+        "dew point":           {"value": 52.0, "units": "°F"},
+        "wind chill":          {"value": 70.0, "units": "°F"},
+        "heat index":          {"value": 71.0, "units": "°F"},
+        "inside temperature":  {"value": 68.0, "units": "°F"},
+        "inside humidity":     {"value": 45.0, "units": "%"},
+        "uv index":            {"value": 5.0,  "units": ""},
+        "radiation":           {"value": 480.0, "units": "W/m²"},
+        "cloud base":          {"value": 4200.0, "units": "feet"},
+        "aqi nowcast":         {"value": 28.0, "units": "AQI"}
     },
     "day": {
         "max temperature": {"value": 72.0, "units": "°F"},
@@ -36,58 +51,24 @@ A new weewx skin template (`trmnl.json.tmpl`) containing only the fields this se
 }
 ```
 
-## Weewx template (`trmnl.json.tmpl`)
+Each `current`/`day` field is conditional on `has_data` in weewx, so a field is absent
+(not null) when the station has no value for it. `aqi nowcast` comes from the AirLink
+sensor's NowCast PM2.5, computed with the 2026 EPA breakpoints.
 
-```
-{
-    "current":
-    {
-        #if $current.outTemp.has_data
-        "temperature": {"value": $current.outTemp.raw, "units": "$current.outTemp.format(" ").lstrip()"},
-        #end if
-        #if $current.outHumidity.has_data
-        "humidity": {"value": $current.outHumidity.raw, "units": "$current.outHumidity.format(" ").lstrip()"},
-        #end if
-        #if $current.barometer.has_data
-        "barometer": {"value": $current.barometer.raw, "units": "$current.barometer.format(" ").lstrip()"},
-        #end if
-        #if $current.windSpeed.has_data
-        "wind speed": {"value": $current.windSpeed.raw, "units": "$current.windSpeed.format(" ").lstrip()"},
-        #end if
-        #if $current.windGust.has_data
-        "wind gust": {"value": $current.windGust.raw, "units": "$current.windGust.format(" ").lstrip()"},
-        #end if
-        #if $current.windDir.has_data
-        "wind direction": {"value": $current.windDir.raw, "units": "$current.windDir.format(" ").lstrip()"},
-        #end if
-        #if $current.rainRate.has_data
-        "rain rate": {"value": $current.rainRate.raw, "units": "$current.rainRate.format(" ").lstrip()"},
-        #end if
-        "void_end": null
-    },
-    "almanac":
-    {
-        "sunrise": "$almanac.sunrise",
-        "sunset":  "$almanac.sunset"
-    },
-    "generation":
-    {
-        "time": "$current.dateTime.format("%a, %d %b %Y %H:%M:%S %Z")"
-    }
-}
-```
+## Weewx template
+
+The canonical template lives in the `weewx-json` repo at
+`skins/JSON/trmnl.json.tmpl` and is registered as `[[trmnl]]` in that skin's `skin.conf`.
+It is installed as part of the weewx-json extension. Do not maintain a copy here.
 
 ## Deployment steps on weather station
 
-1. Save the template as `/etc/weewx/skins/JSON/trmnl.json.tmpl` (or wherever the JSON skin lives — check `SKIN_ROOT` in `weewx.conf`).
+The template ships with the weewx-json extension, so deploying is just installing/upgrading it:
 
-2. Add an entry to `skin.conf` under `[CheetahGenerator] [[ToDate]]`:
-   ```ini
-   [[trmnl]]
-       template = trmnl.json.tmpl
-   ```
-
-3. weewx will generate `trmnl.json` in the skin output directory on the next archive interval (~5 minutes). No restart needed.
+1. Install or upgrade the weewx-json extension on wx (`weectl extension install`), which
+   places `trmnl.json.tmpl` under the JSON skin and registers the `[[trmnl]]` report.
+2. weewx generates `trmnl.json` in the skin output directory on the next archive interval.
+   Confirm `http://wx.jibb.tv/trmnl.json` is live before switching the Go plugin (below).
 
 ## Go plugin update (after feed is live)
 
