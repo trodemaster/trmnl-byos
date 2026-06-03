@@ -88,7 +88,7 @@ The original TRMNL (model `"og"`) uses 1-bit BMP, but this server targets TRMNL 
 
 ```
 trmnl-byos/
-├── cmd/server/main.go          entry point; wires store → server; reads env vars
+├── cmd/trmnl-server/main.go    entry point; wires store → server; reads env vars
 ├── internal/
 │   ├── device/store.go         Device struct + JSON-backed registry
 │   └── plugin/plugin.go        Plugin interface + global registry

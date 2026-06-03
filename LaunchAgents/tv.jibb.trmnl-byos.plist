@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>tv.jibb.trmnl-byos</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/blake/Developer/go/bin/trmnl-server</string>
+	</array>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>BASE_URL</key>
+		<string>http://192.168.234.144:8080</string>
+		<key>PORT</key>
+		<string>8080</string>
+	</dict>
+	<key>WorkingDirectory</key>
+	<string>/Users/blake/Developer/trmnl-byos</string>
+	<key>KeepAlive</key>
+	<true/>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>/Users/blake/Library/Logs/trmnl-byos.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/blake/Library/Logs/trmnl-byos.log</string>
+</dict>
+</plist>

@@ -23,6 +23,24 @@ Active plugin is set in `data/devices.json` → `"plugin": "<name>"`. Currently 
 
 Preview any plugin without changing device assignment: `GET /preview/<name>`
 
+## Running the server
+
+Two instances: **prod** on `:8080` (device-facing, launchd-managed) and **dev** on `:8081` (development, manual).
+
+| Task | Command |
+|---|---|
+| First-time install | `make install` |
+| Update prod after code change | `make reinstall` |
+| Run dev in foreground | `make dev` |
+| Dev as background service | `make dev-install` then `make dev-start` / `make dev-stop` |
+| Check what's running | `make status` |
+| Remove prod service | `make uninstall` |
+
+- `make install` uses `go clean -cache` before building — required to work around a MacPorts Go 1.26 cache corruption bug (`package internal/runtime/sys is not in std`). Use `make reinstall` for fast rebuilds once the cache is clean.
+- Binaries land in `$GOPATH/bin/` (`trmnl-server` and `trmnl-server-dev`). LaunchAgents plists are in `LaunchAgents/` in the repo and copied to `~/Library/LaunchAgents/` on install.
+- Prod logs: `~/Library/Logs/trmnl-byos.log`; dev logs: `~/Library/Logs/trmnl-byos-dev.log`
+- Smoke test: `curl -s http://localhost:8080/preview/dashboard | file -` should return `PNG image data, 1872 x 1404`
+
 ## Key conventions
 
 - TRMNL X only — no 1-bit BMP, no model branching, no original TRMNL support

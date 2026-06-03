@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/trodemaster/trmnl-byos/internal/device"
 	"github.com/trodemaster/trmnl-byos/internal/plugin"
@@ -23,7 +24,9 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := &device.Device{Width: 1872, Height: 1404}
+	start := time.Now()
 	img, err := p.Render(context.Background(), d)
+	log.Printf("preview plugin=%s %s", name, time.Since(start).Round(time.Millisecond))
 	if err != nil {
 		log.Printf("preview render error plugin=%s: %v", name, err)
 		http.Error(w, "render failed", http.StatusInternalServerError)
@@ -56,7 +59,9 @@ func (s *Server) handleScreen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	start := time.Now()
 	img, err := p.Render(context.Background(), d)
+	log.Printf("render device=%s plugin=%s %s", screenID, d.Plugin, time.Since(start).Round(time.Millisecond))
 	if err != nil {
 		log.Printf("render error device=%s plugin=%s: %v", screenID, d.Plugin, err)
 		http.Error(w, "render failed", http.StatusInternalServerError)
