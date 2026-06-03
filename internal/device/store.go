@@ -24,10 +24,11 @@ type Device struct {
 	FriendlyID string    `json:"friendly_id"`
 	Model      string    `json:"model"`
 	FWVersion  string    `json:"fw_version"`
-	Plugin     string    `json:"plugin"` // active plugin name
-	Width      int       `json:"width"`
-	Height     int       `json:"height"`
-	LastSeen   time.Time `json:"last_seen"`
+	Plugin         string    `json:"plugin"` // active plugin name
+	Width          int       `json:"width"`
+	Height         int       `json:"height"`
+	BatteryVoltage float64   `json:"battery_voltage,omitempty"`
+	LastSeen       time.Time `json:"last_seen"`
 }
 
 type Store struct {
@@ -111,7 +112,7 @@ func (s *Store) reloadIfChanged() {
 	_ = s.load()
 }
 
-func (s *Store) UpdateDeviceInfo(apiKey, model, fwVersion string, width, height int) {
+func (s *Store) UpdateDeviceInfo(apiKey, model, fwVersion string, width, height int, batteryVoltage float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d, ok := s.byKey[apiKey]
@@ -129,6 +130,9 @@ func (s *Store) UpdateDeviceInfo(apiKey, model, fwVersion string, width, height 
 	}
 	if height > 0 {
 		d.Height = height
+	}
+	if batteryVoltage > 0 {
+		d.BatteryVoltage = batteryVoltage
 	}
 	d.LastSeen = time.Now()
 	s.save()

@@ -22,6 +22,8 @@ import (
 )
 
 const (
+	lowBatteryThreshold = 3.5 // volts; LiPo ~20% charge
+
 	wxURL = "http://wx.jibb.tv/weewx.json"
 	fcURL = "https://api.open-meteo.com/v1/forecast" +
 		"?latitude=47.6062&longitude=-122.3321" +
@@ -165,6 +167,12 @@ func (p *dashPlugin) Render(_ context.Context, d *device.Device) (*image.Gray, e
 				rain += fmt.Sprintf("  (%.2f in/h)", wx.Current.RainRate.Value)
 			}
 			drawCentered(img, smallFont, rain, w/2, h*612/1000)
+		}
+
+		if d.BatteryVoltage > 0 && d.BatteryVoltage < lowBatteryThreshold {
+			drawRight(img, smallFont,
+				fmt.Sprintf("LOW BATTERY  %.2fV", d.BatteryVoltage),
+				w-margin, h*638/1000)
 		}
 	}
 
