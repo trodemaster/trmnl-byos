@@ -47,7 +47,14 @@ Device sends:
 | `Height` | display height in pixels |
 | `Model` | `x` |
 | `FW-Version` | firmware version string |
-| `Battery-Voltage` | float |
+| `Battery-Voltage` | float, volts (from BQ27427 fuel gauge; -1.0 if not initialized) |
+| `Battery-Charging` | bool string — TRMNL X only, added in fw 1.8.3 |
+| `Battery-Count` | cycle count — TRMNL X only, added in fw 1.8.3 |
+| `Percent-Charged` | state of charge % — TRMNL X only, added in fw 1.8.3 |
+| `Battery-Health` | state of health % — TRMNL X only, added in fw 1.8.3 |
+| `Battery-Current` | current draw mA — TRMNL X only, added in fw 1.8.3 |
+| `Battery-Temp` | battery temperature — TRMNL X only, added in fw 1.8.3 |
+| `Battery-Capacity` | `current/max` mAh — TRMNL X only, added in fw 1.8.3 |
 | `Refresh-Rate` | current sleep interval (ms) |
 | `RSSI` | WiFi signal strength |
 | `wake-time` | duration of previous wake cycle (ms) |
@@ -122,7 +129,7 @@ type Plugin interface {
 
 1. Create `plugins/<name>/<name>.go` in package `<name>`.
 2. Implement `Plugin`, call `plugin.Register` in `init()`.
-3. Add a blank import to `cmd/server/main.go`: `_ "github.com/trodemaster/trmnl-byos/plugins/<name>"`.
+3. Add a blank import to `cmd/trmnl-server/main.go`: `_ "github.com/trodemaster/trmnl-byos/plugins/<name>"`.
 4. Edit `data/devices.json` and set `"plugin": "<name>"` for the target device.
 
 ### Changing a device's plugin at runtime
@@ -177,13 +184,13 @@ All configuration via environment variables:
 ## Running
 
 ```bash
-BASE_URL=http://192.168.1.100:8080 go run ./cmd/server
+BASE_URL=http://192.168.1.100:8080 go run ./cmd/trmnl-server
 ```
 
 Build a binary:
 
 ```bash
-go build -o trmnl-server ./cmd/server
+go build -o trmnl-server ./cmd/trmnl-server
 BASE_URL=http://192.168.1.100:8080 ./trmnl-server
 ```
 
