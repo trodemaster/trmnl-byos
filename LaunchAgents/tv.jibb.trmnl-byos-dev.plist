@@ -14,6 +14,8 @@
 		<string>http://192.168.234.144:8081</string>
 		<key>PORT</key>
 		<string>8081</string>
+		<key>WX_DATA_URL</key>
+		<string>http://localhost:8089/weewx.json</string>
 	</dict>
 	<key>WorkingDirectory</key>
 	<string>/Users/blake/Developer/trmnl-byos</string>

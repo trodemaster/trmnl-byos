@@ -49,3 +49,8 @@ Two instances: **prod** on `:8080` (device-facing, launchd-managed) and **dev** 
 - `.envrc` is gitignored — set `BASE_URL=http://<host>:8080` for the device to reach the server
 - Changing `"plugin"` in `data/devices.json` takes effect on the next device wake — no restart needed (store detects file mtime changes)
 - `refresh_rate` is 60 seconds; `filename` field rotates each wake to bust the device's SPIFFS cache
+- `weather`/`dashboard` plugins read their weewx feed URL from `WX_DATA_URL` (falls back to
+  production `http://wx.jibb.tv/weewx.json` when unset). The dev LaunchAgent and `make dev`
+  set it to `http://localhost:8089/weewx.json` (the weewx-dev Lima VM) so `make dev-install &&
+  make dev-start` previews against test data without touching prod. Override with
+  `make dev WX_DATA_URL=...` to point at something else.

@@ -10,6 +10,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"time"
 
 	"golang.org/x/image/font"
@@ -21,7 +22,9 @@ import (
 	"github.com/trodemaster/trmnl-byos/internal/plugin"
 )
 
-const dataURL = "http://wx.jibb.tv/weewx.json"
+// dataURL defaults to production; set WX_DATA_URL to point a dev build at a
+// test feed (e.g. the weewx-dev Lima VM) without touching the prod binary.
+var dataURL = "http://wx.jibb.tv/weewx.json"
 
 type measurement struct {
 	Value float64 `json:"value"`
@@ -58,6 +61,9 @@ var (
 )
 
 func init() {
+	if url := os.Getenv("WX_DATA_URL"); url != "" {
+		dataURL = url
+	}
 	tt, err := opentype.Parse(goregular.TTF)
 	if err != nil {
 		log.Fatalf("weather: parse font: %v", err)

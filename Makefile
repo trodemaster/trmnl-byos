@@ -8,7 +8,29 @@ PLIST_DEV     := tv.jibb.trmnl-byos-dev
 
 .PHONY: build build-clean install reinstall uninstall \
         dev dev-install dev-reinstall dev-start dev-stop dev-uninstall \
-        status
+        status help
+
+# ── Help ──────────────────────────────────────────────────────────────────────
+
+help:
+	@echo "Production"
+	@echo "  build          fast build (no cache clean)"
+	@echo "  build-clean    reliable build, cleans cache first"
+	@echo "  install        clean build + load launchd service on :8080"
+	@echo "  reinstall      fast rebuild + restart running prod service"
+	@echo "  uninstall      stop and remove prod launchd service"
+	@echo ""
+	@echo "Dev"
+	@echo "  dev            build and run dev server in foreground on :8081"
+	@echo "  dev-install    register dev launchd service (does not start it)"
+	@echo "  dev-reinstall  rebuild + restart background dev service"
+	@echo "  dev-start      start registered dev service"
+	@echo "  dev-stop       stop dev service"
+	@echo "  dev-uninstall  stop and remove dev launchd service"
+	@echo ""
+	@echo "Other"
+	@echo "  status         show launchd service state and HTTP smoke tests"
+	@echo "  help           show this message"
 
 # ── Production ────────────────────────────────────────────────────────────────
 
@@ -41,9 +63,12 @@ uninstall:
 # ── Dev ───────────────────────────────────────────────────────────────────────
 
 # Build and run dev server in the foreground on :8081 (Ctrl-C to stop)
+# WX_DATA_URL points weather/dashboard plugins at the weewx-dev test site
+# instead of production (wx.jibb.tv); override on the command line to change.
+WX_DATA_URL ?= http://localhost:8089/weewx.json
 dev:
 	go build -o $(BINARY_DEV) ./cmd/trmnl-server
-	BASE_URL=http://192.168.234.144:8081 PORT=8081 $(BINARY_DEV)
+	BASE_URL=http://192.168.234.144:8081 PORT=8081 WX_DATA_URL=$(WX_DATA_URL) $(BINARY_DEV)
 
 # Register dev launchd service (does not start it — use dev-start)
 dev-install:
