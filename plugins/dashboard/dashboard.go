@@ -58,6 +58,7 @@ type wxData struct {
 		WindGust    measurement `json:"wind gust"`
 		WindDir     measurement `json:"wind direction"`
 		RainRate    measurement `json:"rain rate"`
+		UV          measurement `json:"uv index"`
 		AQI         measurement `json:"pm2_5_nowcast_aqi"`
 		IndoorAQI   measurement `json:"pm2_5_in_nowcast_aqi"`
 	} `json:"current"`
@@ -192,7 +193,10 @@ func (p *dashPlugin) Render(_ context.Context, d *device.Device) (*image.Gray, e
 			fmt.Sprintf("%.2f inHg", wx.Current.Barometer.Value),
 			w-margin, h*380/1000)
 
-		drawCentered(img, medFont, windString(wx), w/2, h*455/1000)
+		drawLeft(img, medFont, windString(wx), margin, h*455/1000)
+		drawRight(img, medFont,
+			fmt.Sprintf("UV %.0f", wx.Current.UV.Value),
+			w-margin, h*455/1000)
 
 		drawLeft(img, medFont,
 			fmt.Sprintf("High  %.0f%s", wx.Day.MaxTemp.Value, wx.Day.MaxTemp.Units),
