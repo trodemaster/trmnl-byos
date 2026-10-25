@@ -8,11 +8,13 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"sync"
 	"image/png"
 	"log"
 	"math"
 	"net/http"
 	"os"
+	"sort"
 	"time"
 
 	"golang.org/x/image/font"
@@ -26,7 +28,6 @@ import (
 )
 
 const (
-	lowBatteryThreshold = 3.5 // volts; LiPo ~20% charge
 
 	fcURL = "https://api.open-meteo.com/v1/forecast" +
 		"?latitude=47.6062&longitude=-122.3321" +
@@ -38,7 +39,7 @@ const (
 
 // wxURL defaults to production; set WX_DATA_URL to point a dev build at a
 // test feed (e.g. the weewx-dev Lima VM) without touching the prod binary.
-var wxURL = "http://wx.jibb.tv/weewx.json"
+var wxURL = "http://wx.jibb.tv/trmnl.json"
 
 // ── Data types ───────────────────────────────────────────────────────────────
 
@@ -59,14 +60,17 @@ type wxData struct {
 		WindDir     measurement `json:"wind direction"`
 		RainRate    measurement `json:"rain rate"`
 		UV          measurement `json:"uv index"`
-		AQI         measurement `json:"pm2_5_nowcast_aqi"`
-		IndoorAQI   measurement `json:"pm2_5_in_nowcast_aqi"`
+		AQI         measurement `json:"aqi nowcast"`
 	} `json:"current"`
 	Day struct {
 		MaxTemp   measurement `json:"max temperature"`
 		MinTemp   measurement `json:"min temperature"`
 		RainTotal measurement `json:"rain total"`
 	} `json:"day"`
+	Almanac struct {
+		Sunrise string `json:"sunrise"`
+		Sunset  string `json:"sunset"`
+	} `json:"almanac"`
 }
 
 type forecastResponse struct {
@@ -99,6 +103,12 @@ var (
 	medFont   font.Face // current conditions data rows + forecast day names
 	smallFont font.Face // header text, precip labels
 )
+
+var aqiState struct {
+	mu   sync.Mutex
+	prev float64
+	seen bool
+}
 
 func init() {
 	if url := os.Getenv("WX_DATA_URL"); url != "" {
@@ -179,7 +189,12 @@ func (p *dashPlugin) Render(_ context.Context, d *device.Device) (*image.Gray, e
 	} else {
 		wx := wxRes.data
 		drawLeft(img, smallFont, wx.Station.Location, margin, h*50/1000)
-		drawRight(img, smallFont, formatTime12(wx.Generation.Time), w-margin, h*50/1000)
+		timeStr := formatTime12(wx.Generation.Time)
+		drawRight(img, smallFont, timeStr, w-margin, h*50/1000)
+		if hasBattery(d) {
+			timeW := font.MeasureString(smallFont, timeStr).Ceil()
+			drawBattery(img, smallFont, w-margin-timeW-margin/2, h*50/1000, d)
+		}
 		drawHLine(img, h*71/1000, margin, w-margin)
 
 		drawCentered(img, heroFont,
@@ -208,14 +223,38 @@ func (p *dashPlugin) Render(_ context.Context, d *device.Device) (*image.Gray, e
 		// AQI has_data is only omitted from the feed if the AirLink sensor is
 		// unreachable; Units is empty in that case since 0 is a valid AQI value.
 		if wx.Current.AQI.Units != "" {
-			drawLeft(img, medFont,
-				fmt.Sprintf("AQI  %.0f", wx.Current.AQI.Value),
-				margin, h*585/1000)
+			aqiStr := fmt.Sprintf("AQI  %.0f", wx.Current.AQI.Value)
+			cy := h * 585 / 1000
+
+			aqiState.mu.Lock()
+			trend := 0
+			if aqiState.seen {
+				if delta := wx.Current.AQI.Value - aqiState.prev; delta > 2 {
+					trend = 1
+				} else if delta < -2 {
+					trend = -1
+				}
+			}
+			aqiState.prev = wx.Current.AQI.Value
+			aqiState.seen = true
+			aqiState.mu.Unlock()
+
+			if trend == 0 {
+				drawCentered(img, medFont, aqiStr, w/2, cy)
+			} else {
+				arrowH := medFont.Metrics().Ascent.Ceil() * 2 / 3
+				gap := arrowH / 2
+				textW := font.MeasureString(medFont, aqiStr).Ceil()
+				totalW := textW + gap + arrowH
+				x0 := w/2 - totalW/2
+				drawLeft(img, medFont, aqiStr, x0, cy)
+				drawTrendArrow(img, x0+textW+gap+arrowH/2, cy, arrowH, trend > 0)
+			}
 		}
-		if wx.Current.IndoorAQI.Units != "" {
-			drawRight(img, medFont,
-				fmt.Sprintf("Indoor AQI  %.0f", wx.Current.IndoorAQI.Value),
-				w-margin, h*585/1000)
+
+		if wx.Almanac.Sunrise != "" {
+			drawLeft(img, smallFont, "Rise  "+wx.Almanac.Sunrise, margin, h*628/1000)
+			drawRight(img, smallFont, "Set  "+wx.Almanac.Sunset, w-margin, h*628/1000)
 		}
 
 		if wx.Day.RainTotal.Value > 0 {
@@ -223,14 +262,9 @@ func (p *dashPlugin) Render(_ context.Context, d *device.Device) (*image.Gray, e
 			if wx.Current.RainRate.Value > 0 {
 				rain += fmt.Sprintf("  (%.2f in/h)", wx.Current.RainRate.Value)
 			}
-			drawCentered(img, smallFont, rain, w/2, h*628/1000)
+			drawCentered(img, smallFont, rain, w/2, h*651/1000)
 		}
 
-		if d.BatteryVoltage > 0 && d.BatteryVoltage < lowBatteryThreshold {
-			drawRight(img, smallFont,
-				fmt.Sprintf("LOW BATTERY  %.2fV", d.BatteryVoltage),
-				w-margin, h*654/1000)
-		}
 	}
 
 	// Section divider (3px thick, full width)
@@ -327,7 +361,7 @@ func fetchForecast() (*forecastResponse, error) {
 // ── Current conditions helpers ───────────────────────────────────────────────
 
 func formatTime12(s string) string {
-	t, err := time.Parse("Mon, 02 Jan 2006 15:04:05 MST", s)
+	t, err := time.Parse("Mon, Jan 2, 2006 3:04:05 PM MST", s)
 	if err != nil {
 		return s
 	}
@@ -409,8 +443,107 @@ func drawRight(dst draw.Image, face font.Face, s string, x, cy int) {
 	(&font.Drawer{Dst: dst, Src: image.NewUniform(color.Black), Face: face, Dot: fixed.P(x-adv.Ceil(), baseline)}).DrawString(s)
 }
 
+// hasBattery reports whether the device has reported a battery level, as a
+// state of charge or (older firmware) a voltage. The indicator is always shown
+// when it has; it is hidden only for devices that never report one.
+func hasBattery(d *device.Device) bool {
+	return d.BatteryPercent > 0 || d.BatteryVoltage > 0
+}
+
+// onPower reports whether external power is present (charging, or plugged in
+// and full). A bolt next to the battery shows it, so a dock that has lost
+// contact is visible at a glance.
+func onPower(d *device.Device) bool { return d.Charging || d.USBConnected }
+
+// drawBattery draws a battery outline filled in proportion to the charge,
+// followed by the percentage, with its right edge at x and vertical center cy.
+func drawBattery(img *image.Gray, face font.Face, x, cy int, d *device.Device) {
+	label := fmt.Sprintf("%.0f%%", d.BatteryPercent)
+	if d.BatteryPercent <= 0 {
+		label = fmt.Sprintf("%.2fV", d.BatteryVoltage)
+	}
+	drawRight(img, face, label, x, cy)
+
+	bh := face.Metrics().Ascent.Ceil()
+	bw := bh * 2
+	nub := bh / 5
+	t := bh / 8 // outline thickness
+	if t < 2 {
+		t = 2
+	}
+	right := x - font.MeasureString(face, label).Ceil() - bh/2 - nub
+	left := right - bw
+	top := cy - bh/2
+
+	fillRect(img, left, top, right, top+bh, 0)
+	fillRect(img, left+t, top+t, right-t, top+bh-t, 255)
+	fillRect(img, right, cy-bh/6, right+nub, cy+bh/6, 0) // terminal nub
+
+	pct := d.BatteryPercent
+	if pct <= 0 {
+		pct = 100 * (d.BatteryVoltage - 3.3) / (4.2 - 3.3)
+	}
+	pct = math.Max(0, math.Min(100, pct))
+	inner := bw - 2*(t+1)
+	fillRect(img, left+t+1, top+t+1, left+t+1+int(float64(inner)*pct/100), top+bh-t-1, 0)
+
+	if onPower(d) {
+		drawBolt(img, left-bh/3, cy, bh)
+	}
+}
+
+// drawBolt draws a lightning bolt of height h with its right edge at x,
+// vertically centered on cy.
+func drawBolt(img *image.Gray, x, cy, h int) {
+	w := h * 6 / 10
+	x0, y0 := x-w, cy-h/2
+	pts := [][2]float64{{0.62, 0}, {0.05, 0.58}, {0.42, 0.58}, {0.30, 1}, {0.95, 0.40}, {0.56, 0.40}}
+	for py := 0; py < h; py++ {
+		fy := (float64(py) + 0.5) / float64(h)
+		var xs []float64
+		for i := range pts {
+			a, b := pts[i], pts[(i+1)%len(pts)]
+			if (a[1] <= fy) != (b[1] <= fy) {
+				xs = append(xs, a[0]+(fy-a[1])/(b[1]-a[1])*(b[0]-a[0]))
+			}
+		}
+		sort.Float64s(xs)
+		for i := 0; i+1 < len(xs); i += 2 {
+			for px := int(xs[i] * float64(w)); px < int(math.Ceil(xs[i+1]*float64(w))); px++ {
+				img.SetGray(x0+px, y0+py, color.Gray{Y: 0})
+			}
+		}
+	}
+}
+
+// fillRect fills [x0,x1) x [y0,y1) with the given gray level.
+func fillRect(img *image.Gray, x0, y0, x1, y1 int, y uint8) {
+	for py := y0; py < y1; py++ {
+		for px := x0; px < x1; px++ {
+			img.SetGray(px, py, color.Gray{Y: y})
+		}
+	}
+}
+
 func drawHLine(img *image.Gray, y, x0, x1 int) {
 	for x := x0; x <= x1; x++ {
 		img.SetGray(x, y, color.Gray{Y: 0})
+	}
+}
+
+// drawTrendArrow draws a filled triangle centered at (cx, cy) with the given height.
+// up=true points upward (AQI rising), up=false points downward (AQI falling).
+func drawTrendArrow(img *image.Gray, cx, cy, h int, up bool) {
+	for row := 0; row < h; row++ {
+		var halfW int
+		if up {
+			halfW = row // apex at top, wide at bottom
+		} else {
+			halfW = h - 1 - row // wide at top, apex at bottom
+		}
+		y := cy - h/2 + row
+		for dx := -halfW; dx <= halfW; dx++ {
+			img.SetGray(cx+dx, y, color.Gray{Y: 0})
+		}
 	}
 }

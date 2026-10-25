@@ -1,6 +1,6 @@
 # TRMNL BYOS — Claude Instructions
 
-See @DESIGN.md for full protocol, architecture, and plugin documentation.
+See @DESIGN.md for full protocol, architecture, and plugin documentation, and @FIRMWARE.md for firmware updates, device recovery, and debugging a device that stopped checking in.
 
 ## Infrastructure
 

@@ -75,6 +75,10 @@ Server responds with JSON:
 
 `refresh_rate` is in seconds (currently 60). `filename` is a timestamp-based value used as the device's SPIFFS cache key — changing it on every response forces a fresh download each wake cycle.
 
+### Device logs — `POST /api/log`
+
+Device uploads `{"logs":[...]}`; the server replies 204 and writes each entry to its log as `devlog device=<id> ...`. Returning a non-200/204 makes the firmware retry the same logs every wake. See FIRMWARE.md.
+
 ### Image fetch — `GET /screen/<screenID>`
 
 Device downloads whatever URL was in `image_url`. The server renders the active plugin for that device and responds with a PNG image (grayscale, matching the device's reported dimensions).
@@ -103,6 +107,7 @@ trmnl-byos/
 │   ├── server.go               http.ServeMux wiring
 │   ├── setup.go                GET /api/setup
 │   ├── display.go              GET /api/display
+│   ├── devlog.go               POST /api/log (device log upload)
 │   └── screen.go               GET /screen/{id} and GET /preview/{plugin}
 └── plugins/
     ├── clock/clock.go          time + date display

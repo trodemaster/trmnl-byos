@@ -18,6 +18,7 @@ func New(store *device.Store, baseURL string, debug bool) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/setup", s.handleSetup)
 	mux.HandleFunc("GET /api/display", s.handleDisplay)
+	mux.HandleFunc("POST /api/log", s.handleLog)
 	mux.HandleFunc("GET /screen/{id}", s.handleScreen)
 	mux.HandleFunc("GET /preview/{plugin}", s.handlePreview)
 

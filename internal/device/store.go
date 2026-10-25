@@ -28,6 +28,9 @@ type Device struct {
 	Width          int       `json:"width"`
 	Height         int       `json:"height"`
 	BatteryVoltage float64   `json:"battery_voltage,omitempty"`
+	BatteryPercent float64   `json:"battery_percent,omitempty"` // state of charge; 0 = unknown (TRMNL X fw >= 1.8.3)
+	Charging       bool      `json:"charging,omitempty"`      // charger STAT pin: actively charging
+	USBConnected   bool      `json:"usb_connected,omitempty"` // power-good pin: external power present
 	LastSeen       time.Time `json:"last_seen"`
 }
 
@@ -112,7 +115,15 @@ func (s *Store) reloadIfChanged() {
 	_ = s.load()
 }
 
-func (s *Store) UpdateDeviceInfo(apiKey, model, fwVersion string, width, height int, batteryVoltage float64) {
+// Battery is what a wake reports about the battery. Zero values mean "not reported".
+type Battery struct {
+	Voltage  float64
+	Percent  float64
+	Charging bool
+	USB      bool
+}
+
+func (s *Store) UpdateDeviceInfo(apiKey, model, fwVersion string, width, height int, batt Battery) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d, ok := s.byKey[apiKey]
@@ -131,9 +142,14 @@ func (s *Store) UpdateDeviceInfo(apiKey, model, fwVersion string, width, height 
 	if height > 0 {
 		d.Height = height
 	}
-	if batteryVoltage > 0 {
-		d.BatteryVoltage = batteryVoltage
+	if batt.Voltage > 0 {
+		d.BatteryVoltage = batt.Voltage
 	}
+	if batt.Percent > 0 {
+		d.BatteryPercent = batt.Percent
+	}
+	d.Charging = batt.Charging
+	d.USBConnected = batt.USB
 	d.LastSeen = time.Now()
 	s.save()
 }

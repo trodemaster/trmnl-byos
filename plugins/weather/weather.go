@@ -24,7 +24,7 @@ import (
 
 // dataURL defaults to production; set WX_DATA_URL to point a dev build at a
 // test feed (e.g. the weewx-dev Lima VM) without touching the prod binary.
-var dataURL = "http://wx.jibb.tv/weewx.json"
+var dataURL = "http://wx.jibb.tv/trmnl.json"
 
 type measurement struct {
 	Value float64 `json:"value"`
@@ -46,12 +46,19 @@ type wxData struct {
 		WindGust    measurement `json:"wind gust"`
 		WindDir     measurement `json:"wind direction"`
 		RainRate    measurement `json:"rain rate"`
+		DewPoint    measurement `json:"dew point"`
+		UV          measurement `json:"uv index"`
+		AQI         measurement `json:"aqi nowcast"`
 	} `json:"current"`
 	Day struct {
 		MaxTemp   measurement `json:"max temperature"`
 		MinTemp   measurement `json:"min temperature"`
 		RainTotal measurement `json:"rain total"`
 	} `json:"day"`
+	Almanac struct {
+		Sunrise string `json:"sunrise"`
+		Sunset  string `json:"sunset"`
+	} `json:"almanac"`
 }
 
 var (
@@ -108,28 +115,47 @@ func (p *weatherPlugin) Render(_ context.Context, d *device.Device) (*image.Gray
 	// Temperature — hero element
 	drawCentered(img, hugeFont,
 		fmt.Sprintf("%.1f%s", wx.Current.Temperature.Value, wx.Current.Temperature.Units),
-		w/2, h*37/100)
+		w/2, h*320/1000)
 
 	// Humidity (left) | Barometer (right)
 	drawLeft(img, medFont,
 		fmt.Sprintf("Humidity  %.0f%%", wx.Current.Humidity.Value),
-		margin, h*55/100)
+		margin, h*460/1000)
 	drawRight(img, medFont,
 		fmt.Sprintf("%.2f inHg", wx.Current.Barometer.Value),
-		w-margin, h*55/100)
+		w-margin, h*460/1000)
+
+	// Dew point (left) | UV index (right)
+	drawLeft(img, medFont,
+		fmt.Sprintf("Dew Point  %.0f%s", wx.Current.DewPoint.Value, wx.Current.DewPoint.Units),
+		margin, h*540/1000)
+	drawRight(img, medFont,
+		fmt.Sprintf("UV  %.0f", wx.Current.UV.Value),
+		w-margin, h*540/1000)
 
 	// Wind
-	drawCentered(img, medFont, windString(wx), w/2, h*65/100)
+	drawCentered(img, medFont, windString(wx), w/2, h*620/1000)
 
 	// Today's high / low
 	drawLeft(img, medFont,
 		fmt.Sprintf("High  %.0f%s", wx.Day.MaxTemp.Value, wx.Day.MaxTemp.Units),
-		margin, h*75/100)
+		margin, h*700/1000)
 	drawRight(img, medFont,
 		fmt.Sprintf("Low  %.0f%s", wx.Day.MinTemp.Value, wx.Day.MinTemp.Units),
-		w-margin, h*75/100)
+		w-margin, h*700/1000)
 
-	// TODO: add Rise/Set row here once almanac data is in the feed (see DATA_FEEDS.md)
+	// AQI — only when AirLink sensor is reporting (units field is "AQI" when present)
+	if wx.Current.AQI.Units != "" {
+		drawCentered(img, medFont,
+			fmt.Sprintf("AQI  %.0f", wx.Current.AQI.Value),
+			w/2, h*780/1000)
+	}
+
+	// Sunrise / Sunset
+	if wx.Almanac.Sunrise != "" {
+		drawLeft(img, medFont, "Rise  "+wx.Almanac.Sunrise, margin, h*860/1000)
+		drawRight(img, medFont, "Set  "+wx.Almanac.Sunset, w-margin, h*860/1000)
+	}
 
 	// Rain — only shown when there's something to report
 	if wx.Day.RainTotal.Value > 0 {
@@ -137,16 +163,16 @@ func (p *weatherPlugin) Render(_ context.Context, d *device.Device) (*image.Gray
 		if wx.Current.RainRate.Value > 0 {
 			rain += fmt.Sprintf("  (%.2f in/h)", wx.Current.RainRate.Value)
 		}
-		drawCentered(img, medFont, rain, w/2, h*85/100)
+		drawCentered(img, medFont, rain, w/2, h*940/1000)
 	}
 
 	return img, nil
 }
 
 // formatTime12 parses the weewx generation timestamp and returns it in 12-hour format.
-// Input: "Wed, 27 May 2026 18:41:00 PDT" → "6:41 PM PDT"
+// Input: "Mon, Jul 20, 2026 8:00:00 PM PDT" → "Mon Jul 20  8:00 PM"
 func formatTime12(s string) string {
-	t, err := time.Parse("Mon, 02 Jan 2006 15:04:05 MST", s)
+	t, err := time.Parse("Mon, Jan 2, 2006 3:04:05 PM MST", s)
 	if err != nil {
 		return s
 	}
