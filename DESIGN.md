@@ -178,6 +178,7 @@ All configuration via environment variables:
 | `PORT` | `8080` | HTTP listen port |
 | `BASE_URL` | `http://localhost:<PORT>` | Externally reachable URL of this server — embedded in `image_url` responses, so the device must be able to reach it |
 | `DATA_DIR` | `./data` | Directory for `devices.json` |
+| `BIND_ADDR` | *(all interfaces)* | Address to listen on, e.g. `127.0.0.1` when behind a reverse proxy |
 
 `BASE_URL` must be set to your server's LAN IP (e.g. `http://192.168.1.100:8080`) when running on a local network, otherwise the device cannot download the image.
 

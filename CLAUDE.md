@@ -55,6 +55,6 @@ Two instances: **prod** on `:8080` (device-facing, launchd-managed) and **dev** 
   make dev-start` previews against test data without touching prod. Override with
   `make dev WX_DATA_URL=...` to point at something else.
 
-## TODO: BIND_ADDR
+## BIND_ADDR
 
-`cmd/trmnl-server/main.go` uses `http.ListenAndServe(":"+port)`, so it listens on all interfaces. Add a `BIND_ADDR` env (default all interfaces; darkstar sets `127.0.0.1`) so it can sit behind Caddy (`trmnlx.jibb.tv` -> `127.0.0.1:8082` on darkstar). Once shipped, rebuild linux/amd64, redeploy to darkstar, and set `Environment=BIND_ADDR=127.0.0.1` in `machine-cfg/darkstar/trmnl-byos.service`.
+`BIND_ADDR` env sets the listen address (default: all interfaces). darkstar runs the server behind Caddy (`trmnlx.jibb.tv` -> `127.0.0.1:8082`) with `BIND_ADDR=127.0.0.1` in `machine-cfg/darkstar/trmnl-byos.service`. After changing the server, rebuild on darkstar (`CGO_ENABLED=0 go build -o ~/.cache/trmnl-build/trmnl-server ./cmd/trmnl-server`), install to `/usr/local/bin/trmnl-server`, and restart the unit.
